@@ -1,0 +1,15 @@
+# Fichiers à NE PAS uploader vers Cloud Build (le build npm ci les régénère)
+.git
+.gitignore
+node_modules/
+dist/
+dist-ssr/
+*.log
+npm-debug.log*
+
+# Secrets locaux — ne jamais uploader
+.env.local
+*.local
+server/.env
+
+# .env.production EST volontairement uploadé (contient VITE_API_BASE_URL=/api, non secret)

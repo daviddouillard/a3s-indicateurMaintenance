@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Maintenance Dashboard (Vite)",
+      "runtimeExecutable": "C:/Program Files/nodejs/node.exe",
+      "runtimeArgs": ["fimavi-dashboard/start-dev.cjs"],
+      "port": 5173
+    },
+    {
+      "name": "Backend (Express)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "fimavi-dashboard", "run", "server"],
+      "port": 8080
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+# Dépendances et build (sécurité : nested fimavi-dashboard/.gitignore couvre aussi)
+node_modules/
+dist/
+dist-ssr/
+
+# Fichiers d'environnement et locaux
+*.local
+.env
+.env.*
+!.env.example
+
+# Réglages locaux Claude Code (contiennent des clés API — ne pas publier)
+.claude/settings.local.json
+
+# Fichier d'env de déploiement Cloud Run (contient les clés API — ne jamais publier)
+cloudrun-env.yaml
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Fichiers de clés API (Excel) — ne jamais publier
+Ressources/Key*.xlsx
+
+# Exports de données métier
+*.xlsx
+!Ressources/Plan*.xlsx

@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-fimavi-primary: #1B1464;
+  --color-fimavi-secondary: #6C5CE7;
+  --color-fimavi-dark: #0F0B3E;
+  --color-fimavi-light: #EDE9FF;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  margin: 0;
+}
