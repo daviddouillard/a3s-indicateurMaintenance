@@ -3,8 +3,10 @@
 Dashboard des indicateurs maintenance (tickets = demandes d'intervention ACOF). **Copie
 d'Indicateurs_Transport** (même stack, même design, même authentification Entra).
 
-Le backend relaie les données brutes (`GET /api/maintenance`, cache mémoire 5 min, dernière
-copie servie si l'API tombe ; `POST /api/refresh`) ; le frontend calcule tous les
+Le backend sert un instantané des données brutes stocké dans Firestore
+(`snapshots/maintenance`, JSON gzip), rafraîchi chaque nuit à **03:00** (Cloud Scheduler
+`maintenance-refresh-nuit` → `POST /internal/refresh`, en-tête `x-refresh-token` =
+`REFRESH_TOKEN`) et par le bouton « Actualiser » (`POST /api/refresh`) ; le frontend calcule tous les
 indicateurs (`src/utils/indicateurs.ts`) selon la période et la criticité choisies :
 graphique hebdo nouveaux / réalisés / backlog, délai de résolution, préventif / correctif,
 machines les plus sollicitées, coûts mensuels, vignettes (DI en cours, critiques, BT en retard).
@@ -22,7 +24,8 @@ machines les plus sollicitées, coûts mensuels, vignettes (DI en cours, critiqu
 | API upstream | `https://fimapi2.fimavi.com/A3SreportingBDIP/` : `Maintenance/DemandesIntervention`, `Maintenance/BonsTravail`, `Production/Referentiels` (machines) — `X-API-KEY` = `BDIP_API_KEY`. Code de l'API : `C:\Users\david.douillard\source\repos\A3SreportingBDIP` (.NET 8 + Dapper, IIS) |
 | Données | ACOF (`repos\ACOF5\LogistiqueA3S`, base BDIP) : DI `Service=2` (statuts 1/10/50 = en cours, 100 = Terminé, `DateCloture`), BT (type, temps, coûts). Script `sql/001_DemandeIntervention_DateCloture.sql` |
 | GCP | projet **`a3s-indicateurmaintenance`** (nom affiché « a3s-indicateurMaintenance », n° 991405381669), dossier A3S, région `europe-west9` |
-| Cloud Run | service **`a3s-indicateurs-maintenance`** |
+| Cloud Run | service **`a3s-indicateurs-maintenance`**, sortie `--network=fimavi-vpc --subnet=fimavi-subnet --vpc-egress=all-traffic` → Cloud NAT `fimavi-nat` (routeur `fimavi-router`) → IP fixe **34.155.197.162** (`fimavi-nat-ip`), seule IP autorisée sur le pare-feu de fimapi2 (sans elle : timeout) |
+| Firestore | base `(default)` europe-west9 ; le compte `991405381669-compute@developer` doit avoir `roles/datastore.user` |
 | Dépôt | https://github.com/daviddouillard/a3s-indicateurMaintenance (privé) |
 
 ## Commandes
@@ -45,7 +48,7 @@ Déploiement (depuis la racine) :
 ```bash
 gcloud run deploy a3s-indicateurs-maintenance --source fimavi-dashboard \
   --region=europe-west9 --project=a3s-indicateurmaintenance --env-vars-file=cloudrun-env.yaml \
-  --allow-unauthenticated
+  --network=fimavi-vpc --subnet=fimavi-subnet --vpc-egress=all-traffic
 ```
 
 ## Règles

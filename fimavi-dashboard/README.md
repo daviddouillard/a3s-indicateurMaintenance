@@ -11,7 +11,8 @@ Dashboard des indicateurs maintenance, protégé par Microsoft Entra ID.
 
 Données : `GET /api/maintenance` relaie l'API A3SreportingBDIP (DI + BT maintenance ACOF,
 machines) ; les indicateurs sont calculés dans `src/utils/indicateurs.ts`. Variables du
-backend : `ENTRA_*`, `BDIP_API_KEY` (secret).
+backend : `ENTRA_*`, `BDIP_API_KEY` et `REFRESH_TOKEN` (secrets). Instantané Firestore mis à jour
+chaque nuit à 03:00 (Cloud Scheduler).
 
 ## Démarrage local
 
