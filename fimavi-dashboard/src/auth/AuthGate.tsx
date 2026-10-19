@@ -68,6 +68,9 @@ function MemberGate({ children }: { children: ReactNode }) {
 
 // N'affiche les enfants (le dashboard) qu'une fois l'utilisateur authentifié et autorisé.
 export function AuthGate({ children }: { children: ReactNode }) {
+  // Dev local uniquement (vite dev, VITE_AUTH_DISABLED=1 + backend AUTH_DISABLED=1) : le
+  // navigateur intégré ne passe pas l'accès conditionnel FIMAVI. Éliminé du build de prod.
+  if (import.meta.env.DEV && import.meta.env.VITE_AUTH_DISABLED === '1') return <>{children}</>;
   return (
     <>
       <AuthenticatedTemplate>

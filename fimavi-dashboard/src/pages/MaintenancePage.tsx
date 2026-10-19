@@ -1,32 +1,52 @@
-import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
-import { apiFetch } from '../auth/apiClient';
+import { useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { NOT_IN_GROUP, useMaintenance, useRefresh } from '../hooks/useMaintenance';
 import { AccessDenied } from '../auth/AccessDenied';
 import { UserMenu } from '../auth/UserMenu';
 import { Panel } from '../components/Panel';
+import { RefreshButton } from '../components/RefreshButton';
+import { Filtres } from '../components/Filtres';
+import { KpiTiles } from '../components/KpiTiles';
+import { HebdoChart } from '../components/charts/HebdoChart';
+import { CoutsPanel, DelaiPanel, MachinesPanel, TypesPanel } from '../components/IndicateursPanels';
+import { coutsParMois, delaisResolution, filtrerCriticite, heuresParType, kpis, periodes, seriesHebdo, topMachines } from '../utils/indicateurs';
 
-const NOT_IN_GROUP = 'NOT_IN_GROUP';
-
-// Plateforme vierge : vérifie la chaîne frontend → jeton Entra → backend en attendant les
-// indicateurs maintenance (API BDIP à brancher).
-function usePing() {
-  return useQuery({
-    queryKey: ['ping'],
-    queryFn: async () => {
-      const res = await apiFetch('/api/ping');
-      if (res.status === 403) throw new Error(NOT_IN_GROUP);
-      if (!res.ok) throw new Error(`API ${res.status}`);
-      return (await res.json()) as { ok: boolean; at: string };
-    },
-    retry: false,
-  });
-}
+const PERIODE_DEFAUT = `a${new Date().getFullYear()}`;
 
 export default function MaintenancePage() {
-  const { isPending, isError, error } = usePing();
+  const { data, isPending, isError, error } = useMaintenance();
+  const { busy, refresh } = useRefresh();
+  const [periodeKey, setPeriodeKey] = useState(PERIODE_DEFAUT);
+  const [criticite, setCriticite] = useState<number | null>(null);
+
+  // Années proposées : de la première DI à l'année en cours
+  const choix = useMemo(() => {
+    const now = new Date().getFullYear();
+    const first = data?.dis.reduce((min, di) => (di.dateEnregistrement ? Math.min(min, new Date(di.dateEnregistrement).getFullYear()) : min), now) ?? now;
+    const years = Array.from({ length: now - first + 1 }, (_, i) => now - i);
+    return periodes(years);
+  }, [data]);
+  const periode = choix.find((p) => p.key === periodeKey) ?? choix[0];
+
+  const vue = useMemo(() => {
+    if (!data) return null;
+    const { dis, bts } = filtrerCriticite(data.dis, data.bts, criticite);
+    return {
+      hebdo: seriesHebdo(dis, periode),
+      kpis: kpis(dis, bts, periode),
+      delais: delaisResolution(dis, periode),
+      heures: heuresParType(bts, periode),
+      machines: topMachines(dis, bts, data.machines, periode),
+      couts: coutsParMois(bts, periode),
+    };
+  }, [data, criticite, periode]);
 
   // Le serveur a refusé le compte (hors groupe) : même écran que la porte de connexion
   if (error?.message === NOT_IN_GROUP) return <AccessDenied />;
+
+  const updatedAt = data
+    ? new Date(data.updatedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -37,25 +57,58 @@ export default function MaintenancePage() {
             <img src="/A3S.jpg" alt="A3S" className="h-8 object-contain" />
           </a>
           <h1 className="text-base sm:text-lg font-bold text-gray-800 truncate">Indicateurs Maintenance</h1>
+          {updatedAt && (
+            <span
+              className={`hidden sm:flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 ${data?.stale ? 'text-red-700 bg-red-50' : 'text-gray-500 bg-gray-100'}`}
+              title={data?.stale ? "L'API ACOF ne répond pas : dernières données connues" : undefined}
+            >
+              <span className={`w-2 h-2 rounded-full ${data?.stale ? 'bg-red-500' : 'bg-green-500'}`} />
+              {data?.stale ? 'données du' : 'maj'} {updatedAt}
+            </span>
+          )}
         </div>
-        <UserMenu />
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <RefreshButton busy={busy} onRefresh={refresh} />
+          <UserMenu />
+        </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center p-3 sm:p-4">
-        <Panel title="Indicateurs Maintenance" className="w-full max-w-xl">
-          <p className="text-sm text-gray-600">
-            La plateforme est en place. Les indicateurs maintenance apparaîtront ici une fois l'API branchée.
-          </p>
-          <div className="flex items-center gap-2 text-sm">
-            {isPending ? (
-              <><RefreshCw size={16} className="animate-spin text-orange-500" /> Vérification de l'API…</>
-            ) : isError ? (
-              <><XCircle size={16} className="text-red-500" /> API injoignable</>
-            ) : (
-              <><CheckCircle2 size={16} className="text-green-500" /> Connexion API opérationnelle</>
-            )}
+      <main className="flex-1 flex flex-col items-center gap-3 sm:gap-4 p-3 sm:p-4">
+        {isPending ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-500">
+            <RefreshCw size={28} className="animate-spin text-orange-500" />
+            <p className="text-sm font-medium">Chargement des indicateurs…</p>
           </div>
-        </Panel>
+        ) : isError || !vue ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <p className="text-lg font-semibold text-red-600">Erreur de chargement</p>
+            <p className="text-sm text-gray-500 mt-1">Impossible de contacter l'API maintenance (A3SreportingBDIP)</p>
+          </div>
+        ) : (
+          <>
+            <Filtres periodes={choix} periode={periode} onPeriode={setPeriodeKey} criticite={criticite} onCriticite={setCriticite} />
+            <KpiTiles k={vue.kpis} />
+            {vue.kpis.nonDatees > 0 && (
+              <p className="w-full max-w-[1800px] rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {vue.kpis.nonDatees} DI sans date de création (reprise initiale ACOF) : exclues des graphiques, délais et machines,
+                mais comptées dans les DI en cours.
+              </p>
+            )}
+            <Panel
+              title="Demandes d'intervention par semaine"
+              note="Nouveaux = DI créées dans la semaine ; réalisés = DI passées au statut Terminé dans la semaine ; backlog = DI en cours (nouvelle, acceptée, en attente) en fin de semaine."
+              className="w-full max-w-[1800px]"
+            >
+              <HebdoChart rows={vue.hebdo} />
+            </Panel>
+            <div className="w-full max-w-[1800px] grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4 gap-3 sm:gap-4">
+              <DelaiPanel delais={vue.delais} />
+              <TypesPanel heures={vue.heures} />
+              <MachinesPanel machines={vue.machines} />
+              <CoutsPanel couts={vue.couts} />
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

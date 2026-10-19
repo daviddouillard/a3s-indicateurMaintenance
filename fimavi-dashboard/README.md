@@ -9,8 +9,9 @@ Dashboard des indicateurs maintenance, protégé par Microsoft Entra ID.
   variables d'environnement, jamais exposées au navigateur.
 - **Hébergement** : Cloud Run `a3s-indicateurs-maintenance`, projet `a3s-indicateurmaintenance`.
 
-État : plateforme vierge — `/api/ping` vérifie la chaîne d'authentification ; les
-indicateurs (API BDIP maintenance) sont à brancher.
+Données : `GET /api/maintenance` relaie l'API A3SreportingBDIP (DI + BT maintenance ACOF,
+machines) ; les indicateurs sont calculés dans `src/utils/indicateurs.ts`. Variables du
+backend : `ENTRA_*`, `BDIP_API_KEY` (secret).
 
 ## Démarrage local
 

@@ -1,4 +1,5 @@
 import express from 'express';
+import https from 'node:https';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -61,13 +62,100 @@ async function requireAuth(req, res, next) {
 // Toutes les routes /api sont protégées
 app.use('/api', requireAuth);
 
-// --- API ---
-// Plateforme vierge : les routes métier (API BDIP maintenance) seront ajoutées ici, avec la
-// clé API lue UNIQUEMENT depuis une variable d'environnement (jamais dans le frontend).
+// --- Clé API A3SreportingBDIP : fournie UNIQUEMENT via variable d'environnement ---
+const BDIP_API_KEY = process.env.BDIP_API_KEY || '';
+// Démo locale (données fictives, sans appel upstream) : jamais en production
+const MAINTENANCE_MOCK = process.env.MAINTENANCE_MOCK === '1';
 
-// Vérifie la chaîne complète frontend → jeton Entra → backend (affiché sur la page d'accueil).
-app.get('/api/ping', (_req, res) => {
-  res.json({ ok: true, at: new Date().toISOString() });
+const FIMAPI_BASE = 'https://fimapi2.fimavi.com/A3SreportingBDIP';
+
+// GET JSON depuis l'upstream. rejectUnauthorized:false : certificats internes FIMAVI non
+// vérifiables par défaut (même choix que les autres dashboards A3S).
+function fetchUpstreamJson(route, timeoutMs = 30000) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      `${FIMAPI_BASE}/${route}`,
+      { method: 'GET', headers: { 'X-API-KEY': BDIP_API_KEY }, rejectUnauthorized: false },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) return reject(new Error(`${route} : upstream ${res.statusCode}`));
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(new Error(`${route} : JSON invalide (${e.message})`));
+          }
+        });
+      }
+    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`${route} : timeout upstream (${timeoutMs} ms)`)));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+// Données maintenance brutes (DI + BT du service maintenance, machines) : les indicateurs
+// sont calculés par le frontend, qui filtre par période sans rappeler le serveur.
+// Cache mémoire de 5 min ; si l'upstream tombe, on sert la dernière copie (stale: true).
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let cache = null; // { data, fetchedAt }
+let inflight = null;
+
+async function loadMaintenance() {
+  if (MAINTENANCE_MOCK) {
+    const { mockMaintenance } = await import('./mock.mjs');
+    return mockMaintenance();
+  }
+  const [dis, bts, referentiels] = await Promise.all([
+    fetchUpstreamJson('Maintenance/DemandesIntervention'),
+    fetchUpstreamJson('Maintenance/BonsTravail'),
+    fetchUpstreamJson('Production/Referentiels'),
+  ]);
+  return {
+    dis,
+    bts,
+    machines: (referentiels?.machines ?? []).map((m) => ({ idMachine: m.idMachine, nom: m.nom })),
+  };
+}
+
+async function getMaintenance(force = false) {
+  if (!force && cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) return { ...cache.data, updatedAt: new Date(cache.fetchedAt).toISOString(), stale: false };
+  if (!inflight) {
+    inflight = loadMaintenance()
+      .then((data) => {
+        cache = { data, fetchedAt: Date.now() };
+        return cache;
+      })
+      .finally(() => {
+        inflight = null;
+      });
+  }
+  try {
+    const fresh = await inflight;
+    return { ...fresh.data, updatedAt: new Date(fresh.fetchedAt).toISOString(), stale: false };
+  } catch (e) {
+    console.error('Lecture maintenance', e?.message ?? e);
+    if (cache) return { ...cache.data, updatedAt: new Date(cache.fetchedAt).toISOString(), stale: true };
+    throw e;
+  }
+}
+
+app.get('/api/maintenance', async (_req, res) => {
+  try {
+    res.json(await getMaintenance());
+  } catch (e) {
+    res.status(502).json({ error: 'API maintenance injoignable', detail: String(e?.message ?? e) });
+  }
+});
+
+// Bouton « Actualiser » : relit l'upstream sans attendre l'expiration du cache
+app.post('/api/refresh', async (_req, res) => {
+  try {
+    res.json(await getMaintenance(true));
+  } catch (e) {
+    res.status(502).json({ error: 'API maintenance injoignable', detail: String(e?.message ?? e) });
+  }
 });
 
 // --- Frontend statique (build Vite) ---

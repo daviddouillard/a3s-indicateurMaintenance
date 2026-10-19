@@ -12,6 +12,27 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "fimavi-dashboard", "run", "server"],
       "port": 8080
+    },
+    {
+      "name": "Demo Backend (mock, sans auth)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "fimavi-dashboard", "run", "server"],
+      "env": { "AUTH_DISABLED": "1", "MAINTENANCE_MOCK": "1" },
+      "port": 8080
+    },
+    {
+      "name": "Backend vraies données (sans auth)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "fimavi-dashboard", "run", "server"],
+      "env": { "AUTH_DISABLED": "1" },
+      "port": 8080
+    },
+    {
+      "name": "Demo Dashboard (sans auth)",
+      "runtimeExecutable": "C:/Program Files/nodejs/node.exe",
+      "runtimeArgs": ["fimavi-dashboard/start-dev.cjs"],
+      "env": { "VITE_AUTH_DISABLED": "1" },
+      "port": 5173
     }
   ]
 }

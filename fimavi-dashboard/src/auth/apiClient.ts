@@ -42,6 +42,8 @@ async function fetchWithToken(input: string, init: RequestInit, token: string): 
 // fetch authentifié : ajoute l'en-tête Authorization: Bearer <jeton>. Sur un 401 (jeton
 // refusé, par ex. expiré), on renouvelle le jeton et on réessaie une fois.
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  // Dev local sans connexion (cf. AuthGate) : éliminé du build de prod
+  if (import.meta.env.DEV && import.meta.env.VITE_AUTH_DISABLED === '1') return fetch(input, init);
   const res = await fetchWithToken(input, init, await acquireToken());
   if (res.status !== 401) return res;
   return fetchWithToken(input, init, await acquireToken(true));
