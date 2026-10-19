@@ -96,7 +96,7 @@ export default function MaintenancePage() {
             )}
             <Panel
               title="Demandes d'intervention par semaine"
-              note="Nouveaux = DI créées dans la semaine ; réalisés = DI passées au statut Terminé dans la semaine ; backlog = DI en cours (nouvelle, acceptée, en attente) en fin de semaine."
+              note="Entrées = DI créées dans la semaine ; clôturées = DI passées au statut Terminé dans la semaine ; backlog = DI en cours (nouvelle, acceptée, en attente) en fin de semaine."
               className="w-full max-w-[1800px]"
             >
               <HebdoChart rows={vue.hebdo} />
