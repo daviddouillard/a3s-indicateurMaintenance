@@ -31,7 +31,7 @@ l'application d'entreprise) : un compte hors groupe se connecte puis voit l'écr
 1. App Registration single-tenant, **Authentication** → plateforme **SPA**, redirect URIs :
    - `http://localhost:5173`
    - `https://a3s-indicateurs-maintenance-991405381669.europe-west9.run.app`
-   - l'URL `…-od.a.run.app` affichée par `gcloud run services describe` après le premier déploiement
+   - `https://a3s-indicateurs-maintenance-diqd5zt53a-od.a.run.app`
 2. **Token configuration** → claim `groups` : « Groups assigned to the application », jeton
    **ID**, format **Group ID**. Sans ce claim, tout le monde voit « Accès refusé ».
 3. **Applications d'entreprise** : groupe assigné, « Attribution requise ? » = **Non**.

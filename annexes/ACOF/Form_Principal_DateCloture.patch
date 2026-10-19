@@ -1,0 +1,20 @@
+--- a/LogistiqueA3S/Form_Principal.vb
++++ b/LogistiqueA3S/Form_Principal.vb
+@@ -4189,7 +4189,7 @@
+                             Dim p4 As New System.Data.SqlClient.SqlParameter("@Description", TextBox_DI_Description.Text.ToString())
+                             Dim p5 As New System.Data.SqlClient.SqlParameter("@Titre", TextBox_DI_Titre.Text.ToString())
+                             Dim p6 As New System.Data.SqlClient.SqlParameter("@IdDemandeIntervention", _DI_IdSelect)
+-                            ConnexionBase_BDIP.ExecRQ("update DemandeIntervention set Statut=@Statut, Criticite=@Criticite, IdMachine=@IdMachine, Description=@Description, Titre=@Titre where IdDemandeIntervention=@IdDemandeIntervention;", p1, p2, p3, p4, p5, p6)
++                            ConnexionBase_BDIP.ExecRQ("update DemandeIntervention set Statut=@Statut, Criticite=@Criticite, IdMachine=@IdMachine, Description=@Description, Titre=@Titre, DateCloture=CASE WHEN @Statut=100 THEN ISNULL(DateCloture, GETDATE()) ELSE NULL END where IdDemandeIntervention=@IdDemandeIntervention;", p1, p2, p3, p4, p5, p6)
+ 
+                             DI_AjoutHistorique(_DI_IdSelect, commentaire.TrimEnd())
+ 
+@@ -22866,7 +22866,7 @@
+                         Dim p4 As New System.Data.SqlClient.SqlParameter("@Description", TextBox_Maint_DIDescription.Text.ToString())
+                         Dim p5 As New System.Data.SqlClient.SqlParameter("@Titre", TextBox_Maint_DITitre.Text.ToString())
+                         Dim p6 As New System.Data.SqlClient.SqlParameter("@IdDemandeIntervention", _Maint_IdDISelect)
+-                        ConnexionBase_BDIP.ExecRQ("update DemandeIntervention set Statut=@Statut, Criticite=@Criticite, IdMachine=@IdMachine, Description=@Description, Titre=@Titre where IdDemandeIntervention=@IdDemandeIntervention;", p1, p2, p3, p4, p5, p6)
++                        ConnexionBase_BDIP.ExecRQ("update DemandeIntervention set Statut=@Statut, Criticite=@Criticite, IdMachine=@IdMachine, Description=@Description, Titre=@Titre, DateCloture=CASE WHEN @Statut=100 THEN ISNULL(DateCloture, GETDATE()) ELSE NULL END where IdDemandeIntervention=@IdDemandeIntervention;", p1, p2, p3, p4, p5, p6)
+ 
+                         DI_AjoutHistorique(_Maint_IdDISelect, commentaire.TrimEnd())
+ 

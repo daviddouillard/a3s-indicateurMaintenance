@@ -12,6 +12,8 @@ graphique hebdo nouveaux / réalisés / backlog, délai de résolution, prévent
 machines les plus sollicitées, coûts mensuels, vignettes (DI en cours, critiques, BT en retard).
 
 À lire en début de session :
+- [fimavi-dashboard/DOCUMENTATION.md](fimavi-dashboard/DOCUMENTATION.md) — référence technique (chaîne de données, codes ACOF, définitions des indicateurs, données de reprise exclues, infra, exploitation)
+- [annexes/README.md](annexes/README.md) — sauvegarde des modifications faites dans A3SreportingBDIP et ACOF (projets hors git)
 - [fimavi-dashboard/AUTH-ENTRA.md](fimavi-dashboard/AUTH-ENTRA.md) — authentification Entra
 - [fimavi-dashboard/README.md](fimavi-dashboard/README.md) — vue d'ensemble
 - `../Indicateurs_Transport` — projet modèle (agrégats Firestore, refresh, panneaux, graphiques)

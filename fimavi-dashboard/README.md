@@ -22,4 +22,6 @@ npm run server   # backend :8080 (lit server/.env)
 npm run dev      # frontend :5173
 ```
 
-Voir [AUTH-ENTRA.md](AUTH-ENTRA.md) pour la configuration Entra.
+Voir [DOCUMENTATION.md](DOCUMENTATION.md) pour la référence technique (indicateurs,
+données, infrastructure, exploitation) et [AUTH-ENTRA.md](AUTH-ENTRA.md) pour la
+configuration Entra.
