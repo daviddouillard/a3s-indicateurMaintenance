@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../auth/apiClient';
+import { apiFetch, REFRESH_TIMEOUT_MS } from '../auth/apiClient';
+import { NOT_IN_GROUP, retryUnlessForbidden } from './apiErrors';
 
-export const NOT_IN_GROUP = 'NOT_IN_GROUP';
+export { NOT_IN_GROUP };
 
 // Forme JSON de l'API A3SreportingBDIP (Maintenance/DemandesIntervention, Maintenance/BonsTravail),
 // relayée telle quelle par le backend (/api/maintenance).
@@ -64,7 +65,7 @@ export function useMaintenance() {
     queryKey: QUERY_KEY,
     queryFn: async () => readJson(await apiFetch('/api/maintenance')),
     refetchInterval: 5 * 60 * 1000,
-    retry: (count, err) => err.message !== NOT_IN_GROUP && count < 2,
+    retry: retryUnlessForbidden,
   });
 }
 
@@ -77,7 +78,7 @@ export function useRefresh() {
     if (busy) return;
     setBusy(true);
     try {
-      queryClient.setQueryData(QUERY_KEY, await readJson(await apiFetch('/api/refresh', { method: 'POST' })));
+      queryClient.setQueryData(QUERY_KEY, await readJson(await apiFetch('/api/refresh', { method: 'POST' }, REFRESH_TIMEOUT_MS)));
     } catch (e) {
       console.error('Actualisation échouée', e);
     } finally {

@@ -38,3 +38,19 @@ l'application d'entreprise) : un compte hors groupe se connecte puis voit l'écr
 
 > L'accès conditionnel FIMAVI exige un navigateur conforme (Edge, ou Chrome + extension
 > Microsoft SSO).
+
+## Session bloquée (« la page tourne en boucle »)
+
+Correctif repris d'Indicateurs AIC (21/10/2026) :
+
+- **Navigateur** (`src/auth/apiClient.ts`) : renouvellement silencieux et redirection Microsoft
+  bornés à 10 s, une seule redirection de secours par onglet toutes les 2 min, délai des appels
+  `/api` (60 s ; 90 s pour « Actualiser », qui relit fimapi2). Session non renouvelable ou 2e 401
+  → erreur `RECONNEXION_REQUISE` (`src/hooks/apiErrors.ts`, pas de nouvel essai react-query).
+- **Bandeau** `src/components/SessionWatchdog.tsx` : affiché sur `RECONNEXION_REQUISE` ou après
+  25 s de chargement continu, avec un seul bouton « Se reconnecter » (purge du verrou MSAL
+  « interaction en cours », du cache MSAL, puis `loginRedirect`). Pas de bouton « Recharger la
+  page » : il ne débloque pas une session bloquée.
+- **Serveur** (`requireAuth`) : clés Microsoft (JWKS) téléchargées avec un délai de 10 s,
+  deux nouveaux essais sur erreur réseau, et **503** (pas 401) si elles restent injoignables ;
+  préchargement au démarrage sur Cloud Run (`K_SERVICE`).

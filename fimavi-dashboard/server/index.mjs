@@ -22,12 +22,30 @@ if (!AUTH_DISABLED && (!ENTRA_TENANT_ID || !ENTRA_CLIENT_ID || !ENTRA_GROUP_ID))
   console.error('ENTRA_TENANT_ID / ENTRA_CLIENT_ID / ENTRA_GROUP_ID manquants : les routes /api rejetteront tout.');
 }
 
-// Clés publiques du tenant, mises en cache par jose
+// Clés publiques du tenant, mises en cache par jose (délai de téléchargement porté à 10 s :
+// la sortie réseau passe par le VPC / Cloud NAT)
 const JWKS = ENTRA_TENANT_ID
   ? createRemoteJWKSet(
-      new URL(`https://login.microsoftonline.com/${ENTRA_TENANT_ID}/discovery/v2.0/keys`)
+      new URL(`https://login.microsoftonline.com/${ENTRA_TENANT_ID}/discovery/v2.0/keys`),
+      { timeoutDuration: 10_000 }
     )
   : null;
+
+// Échec du téléchargement des clés Microsoft (réseau, délai) : ce n'est pas un jeton invalide
+const erreurJwks = (e) => /^ERR_JWKS/.test(e?.code ?? '') || /fetch failed|ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN/i.test(`${e?.message ?? ''} ${e?.cause?.code ?? ''}`);
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Vérifie le jeton ; en cas d'échec réseau sur les clés, réessaie deux fois
+async function verifierJeton(token) {
+  for (let essai = 0; ; essai++) {
+    try {
+      return await jwtVerify(token, JWKS, { issuer: ISSUERS, audience: AUDIENCES });
+    } catch (e) {
+      if (!erreurJwks(e) || essai >= 2) throw e;
+      await pause(500 * (essai + 1));
+    }
+  }
+}
 
 // Émetteurs acceptés : v2.0 (login.microsoftonline.com/.../v2.0) et v1.0 (sts.windows.net),
 // selon requestedAccessTokenVersion du manifeste — on accepte les deux par robustesse.
@@ -48,8 +66,13 @@ async function requireAuth(req, res, next) {
 
   let payload;
   try {
-    ({ payload } = await jwtVerify(token, JWKS, { issuer: ISSUERS, audience: AUDIENCES }));
+    ({ payload } = await verifierJeton(token));
   } catch (e) {
+    // Clés Microsoft injoignables : 503 (le navigateur réessaie) et non 401 (session à refaire)
+    if (erreurJwks(e)) {
+      console.error('Clés Microsoft injoignables', req.path, e?.code ?? '', e?.message ?? e);
+      return res.status(503).json({ error: 'Service momentanément indisponible' });
+    }
     console.warn('Jeton refusé', req.path, e?.code ?? '', e?.message ?? e);
     return res.status(401).json({ error: 'Jeton invalide', detail: String(e?.message ?? e) });
   }
@@ -230,4 +253,14 @@ app.use(express.static(distDir));
 // Fallback SPA (toutes les routes non-API renvoient index.html)
 app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(distDir, 'index.html')));
 
-app.listen(PORT, () => console.log(`Server listening on :${PORT}`));
+app.listen(PORT, async () => {
+  console.log(`Server listening on :${PORT}`);
+  // Cloud Run : clés Microsoft téléchargées dès le démarrage (et non à la 1re requête),
+  // avec trois essais, pour qu'un démarrage à froid ne fasse pas échouer la connexion
+  if (process.env.K_SERVICE && JWKS && typeof JWKS.reload === 'function') {
+    for (let essai = 1; essai <= 3; essai++) {
+      try { await JWKS.reload(); break; }
+      catch (e) { console.warn(`Préchargement des clés Microsoft (essai ${essai})`, e?.message ?? e); await pause(1000 * essai); }
+    }
+  }
+});
